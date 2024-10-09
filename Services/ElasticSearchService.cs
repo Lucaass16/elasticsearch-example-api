@@ -1,8 +1,9 @@
-﻿using Nest;
+﻿using ElasticAPI.Models;
+using Nest;
 
 namespace ElasticAPI.Services
 {
-    public class ElasticSearchService<T> : IElasticSearchService<T> where T : class
+    public class ElasticSearchService<T> : IElasticSearchService<T> where T : class, IIdentifiable
     {
 
         private readonly IElasticClient _client;
@@ -12,6 +13,8 @@ namespace ElasticAPI.Services
             var settings = new ConnectionSettings(elasticUri)
                                 .DefaultIndex("user");
 
+            settings.BasicAuthentication("exUser", "exPasswd");
+
             _client = new ElasticClient(settings);
         }
 
@@ -19,16 +22,18 @@ namespace ElasticAPI.Services
         {
             var response = await _client.IndexDocumentAsync(document);
 
+            if (response.IsValid) { document.Id = response.Id; }
+
             return response;
         }                       
 
-        public async Task<T> GetDocument(string id)
+        public async Task<GetResponse<T>> GetDocument(string id)
         {
             var response = await _client.GetAsync<T> (id);
 
             if (!response.IsValid || response.Source == null) { throw new Exception($"Erro ao buscar o doumento com id {id}"); }
 
-            return response.Source;
+            return response;
         }
 
         public async Task<IEnumerable<T>?> SearchDocument(string query)
@@ -59,15 +64,26 @@ namespace ElasticAPI.Services
 
         public async Task<IEnumerable<T>> SearchAllWithPagination(int page, int pageSize)
         {
+
+            int from = (page - 1) * pageSize;
+
             var response = await _client.SearchAsync<T, T>(s => s
                 .Query(q => q
                 .MatchAll())
-                .From((page - 1) * pageSize)
+                .From(from)
                 .Size(pageSize));
 
             if (!response.IsValid) { throw new Exception("Ocorreu algum erro ao buscar"); }
 
-            return response.Documents;
+            var documentsId = response.Hits.Select(hit =>
+            {
+                var doc = hit.Source;
+                doc.Id = hit.Id;
+                return doc;
+            }).ToList();
+
+
+            return documentsId;
         }
     }
 }

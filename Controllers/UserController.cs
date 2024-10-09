@@ -19,15 +19,16 @@ namespace ElasticAPI.Controllers
         {
             var result = await _elasticService.GetDocument(id);
 
-            if (result == null) { return  NotFound(); }
+            if (!result.IsValid) { return NotFound(); }
 
-            return Ok(result);
+            return Ok(new { id = result.Id, obj = result.Source });
         }
 
         [HttpGet("{page}/{pageSize}")]
         public async Task<IActionResult> SearchAllWithPagination(int page, int pageSize)
         {
             var documents = await _elasticService.SearchAllWithPagination(page, pageSize);
+
 
             return Ok(documents);
         }

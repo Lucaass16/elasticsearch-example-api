@@ -2,9 +2,10 @@
 
 namespace ElasticAPI.Models
 {
-    public class UserModel
+    public class UserModel : IIdentifiable
     {
-        public string? id { get; set; }
+        [Key]
+        public string? Id { get; set; }
         public string nome { get; set; }
         public string email { get; set; }
         public string senha { get; set; }
